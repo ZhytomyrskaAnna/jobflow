@@ -11,3 +11,153 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id  String  @id @default(uuid()) @db.uuid
+  email String  @unique @db.VarChar(255)
+  passwordHash String @db.VarChar(255)
+  firstName String  @db.VarChar(100)
+  lastName  String  @db.VarChar(100)
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updateAt
+
+  companies Company[]
+  vacancies Vacancy[]
+  applications Application[]
+
+}
+
+model Company{
+  id  String  @id @default(uuid()) @db.Uuid 
+  userId  String  @db.Uuid 
+  name String @db.VarChar(200)
+  website String? @db.VarChar(500)
+  industry  String? @db.VarChar(150)
+  country String? @db.VarChar(100)
+  notes String? @db.Text
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updateAt
+
+  user User @relation(field: [userId], references: [id])
+  vacancies Vacancy[]
+
+  @@index([userId])
+  @@unique([userId, name])
+}
+
+enum WorkType{
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+model Vacancy{
+  id  String  @id @default(uuid()) @db.Uuid
+  userId  String  @db.Uuid
+  companyId String  @db.Uuid
+  title String  @db.VarChar(200)
+  description String? @db.Text
+  url String? @db.VarChar(1000)
+  location  String? @db.VarChar(200)
+  workType WorkType?
+  salaryMin Decimal?
+  salaryMax Decimal?
+  currency  String? @db.Char(3)
+  source  String? @db.VarChar(100)
+  dateFound DateTime? @db.Date
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updateAt
+
+  user User @relation(field: [userId], references: [id])
+  company Company @relation(field: [companyId], references: [id])
+  applications Application?
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([title])
+  @@index([source])
+  @@index([workType])
+}
+
+enum ApplicationStatus{
+  SAVED
+  APPLIED
+  HR_iNTERVIEW
+  TECHNICAL_INTERVIEW
+  FINAL_INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+model Application{
+  id String @id @db.default(uuid()) @db.Uuid 
+  userId String @db.Uuid 
+  vacancyId String  @db.Uuid 
+  status ApplicationStatus
+  appliedAt DateTime?
+  lastActivityAt  DateTime
+  notes String? @db.Text
+  rejectionRrason String? @db.Text
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updateAt
+
+  user User @relation(field: [userId], references: [id])
+  vacancy Vacancy @relation(field: [vacancyId], references: [id])
+  interviews  Interview[]
+  statusHistory ApplicationStatusHistory[]
+
+  @@index([userId])
+  @@index([vacancyId])
+  @@index([status])
+  @@index([appliedAt])
+  @@index([userId, status])
+
+}
+
+enum InterviewType{
+  HR
+  TECHNICAL
+  LIVE_CODING
+  HIRING_MANAGER
+  FINAL
+  OTHER
+}
+
+enum InterviewResult{
+  PENDING
+  PASSED
+  FAILED
+  CANCELLED
+}
+
+model Interview{
+  id  String  @id @default(uuid()) @db.Uuid 
+  applicationId String  @db.Uuid
+  type InterviewType
+  scheduledAt DateTime
+  interviewer String?  @db.VarChar(200)
+  notes String? @db.Text
+  result  InterviewResult?
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updateAt
+
+  application Application @relation(field: [applicationId], references: [id])
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+  @@index([type])
+}
+
+model ApplicationStatusHistory{
+  id String @id @default(uuid())  @db.Uuid 
+  applicationId String  @db.Uuid
+  status ApplicationStatus
+  changedAt DateTime  @default(now())
+
+  application Application @relation(field: [applicationId], references: [id])
+
+  @@index([applicationId])
+  @@index([changedAt])
+  @@index([applicationId,changedAt])
+}
