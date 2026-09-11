@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -13,30 +8,28 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @db.VarChar(255)
-  firstName    String   @db.VarChar(100)
-  lastName     String   @db.VarChar(100)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique @db.VarChar(255)
+  passwordHash String        @db.VarChar(255)
+  firstName    String        @db.VarChar(100)
+  lastName     String        @db.VarChar(100)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  applications Application[]
   companies    Company[]
   vacancies    Vacancy[]
-  applications Application[]
 }
 
 model Company {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  name      String   @db.VarChar(200)
-  website   String?  @db.VarChar(500)
-  industry  String?  @db.VarChar(150)
-  country   String?  @db.VarChar(100)
-  notes     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  name      String    @db.VarChar(200)
+  website   String?   @db.VarChar(500)
+  industry  String?   @db.VarChar(150)
+  country   String?   @db.VarChar(100)
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   vacancies Vacancy[]
 
@@ -44,38 +37,88 @@ model Company {
   @@index([userId])
 }
 
-enum WorkType {
-  REMOTE
-  HYBRID
-  ONSITE
-}
-
 model Vacancy {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @db.Uuid
-  companyId   String    @db.Uuid
-  title       String    @db.VarChar(200)
-  description String?   @db.Text
-  url         String?   @db.VarChar(1000)
-  location    String?   @db.VarChar(200)
-  workType    WorkType?
-  salaryMin   Decimal?  @db.Decimal(12, 2)
-  salaryMax   Decimal?  @db.Decimal(12, 2)
-  currency    String?   @db.Char(3)
-  source      String?   @db.VarChar(100)
-  dateFound   DateTime? @db.Date
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @db.Uuid
+  companyId    String       @db.Uuid
+  title        String       @db.VarChar(200)
+  description  String?
+  url          String?      @db.VarChar(1000)
+  location     String?      @db.VarChar(200)
+  workType     WorkType?
+  salaryMin    Decimal?     @db.Decimal(12, 2)
+  salaryMax    Decimal?     @db.Decimal(12, 2)
+  currency     String?      @db.Char(3)
+  source       String?      @db.VarChar(100)
+  dateFound    DateTime?    @db.Date
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   applications Application?
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([companyId])
   @@index([title])
   @@index([source])
   @@index([workType])
+}
+
+model Application {
+  id              String                     @id @default(uuid()) @db.Uuid
+  userId          String                     @db.Uuid
+  vacancyId       String                     @unique @db.Uuid
+  status          ApplicationStatus
+  appliedAt       DateTime?
+  lastActivityAt  DateTime
+  notes           String?
+  rejectionReason String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+  user            User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vacancy         Vacancy                    @relation(fields: [vacancyId], references: [id], onDelete: Restrict)
+  statusHistory   ApplicationStatusHistory[]
+  interviews      Interview[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([appliedAt])
+  @@index([userId, status])
+}
+
+model Interview {
+  id            String           @id @default(uuid()) @db.Uuid
+  applicationId String           @db.Uuid
+  type          InterviewType
+  scheduledAt   DateTime
+  interviewer   String?          @db.VarChar(200)
+  notes         String?
+  result        InterviewResult?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  application   Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([scheduledAt])
+  @@index([type])
+}
+
+model ApplicationStatusHistory {
+  id            String            @id @default(uuid()) @db.Uuid
+  applicationId String            @db.Uuid
+  status        ApplicationStatus
+  changedAt     DateTime          @default(now())
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([changedAt])
+  @@index([applicationId, changedAt])
+}
+
+enum WorkType {
+  REMOTE
+  HYBRID
+  ONSITE
 }
 
 enum ApplicationStatus {
@@ -87,29 +130,6 @@ enum ApplicationStatus {
   OFFER
   REJECTED
   WITHDRAWN
-}
-
-model Application {
-  id              String            @id @default(uuid()) @db.Uuid
-  userId          String            @db.Uuid
-  vacancyId       String            @unique @db.Uuid
-  status          ApplicationStatus
-  appliedAt       DateTime?
-  lastActivityAt  DateTime
-  notes           String?           @db.Text
-  rejectionReason String?           @db.Text
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  user          User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vacancy       Vacancy                    @relation(fields: [vacancyId], references: [id], onDelete: Restrict)
-  interviews    Interview[]
-  statusHistory ApplicationStatusHistory[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([appliedAt])
-  @@index([userId, status])
 }
 
 enum InterviewType {
@@ -126,35 +146,4 @@ enum InterviewResult {
   PASSED
   FAILED
   CANCELLED
-}
-
-model Interview {
-  id            String           @id @default(uuid()) @db.Uuid
-  applicationId String           @db.Uuid
-  type          InterviewType
-  scheduledAt   DateTime
-  interviewer   String?          @db.VarChar(200)
-  notes         String?          @db.Text
-  result        InterviewResult?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-
-  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  @@index([applicationId])
-  @@index([scheduledAt])
-  @@index([type])
-}
-
-model ApplicationStatusHistory {
-  id            String            @id @default(uuid()) @db.Uuid
-  applicationId String            @db.Uuid
-  status        ApplicationStatus
-  changedAt     DateTime          @default(now())
-
-  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  @@index([applicationId])
-  @@index([changedAt])
-  @@index([applicationId, changedAt])
 }
